@@ -13,7 +13,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚡ NEON CYBER FPS 3D")
-st.caption("스트림릿 내부에서 구동되는 완벽한 3D 입체 FPS 총게임입니다. 마우스와 키보드로 조작하세요.")
+st.caption("에러 수정 완료! 이제 WASD로 이동하고 마우스로 조준하여 사격하세요.")
 
 # Three.js 기반 고퀄리티 3D FPS 게임 스크립트
 fps_3d_html = """
@@ -31,8 +31,8 @@ fps_3d_html = """
         }
         #game-container {
             position: relative;
-            width: 100vw;
-            height: 80vh;
+            width: 100%;
+            height: 550px;
             border: 4px solid #ff007f;
             border-radius: 15px;
             box-shadow: 0 0 40px rgba(255, 0, 127, 0.3);
@@ -113,3 +113,44 @@ fps_3d_html = """
     
     <div id="info-overlay">
         <b>[컨트롤]</b><br>
+        화면 클릭: 마우스 시점 고정 (FPS 모드)<br>
+        마우스 이동: 조준선 회전<br>
+        마우스 좌클릭: <b>총기 발사</b><br>
+        W, A, S, D: <b>플레이어 이동</b><br>
+        R 키: 재장전 (RELOAD)<br>
+        ESC 키: 마우스 해제
+    </div>
+
+    <div id="start-prompt" onclick="lockPointer()">
+        <h2>클릭하여 게임 시작</h2>
+        <p>마우스 조준선 록을 활성화합니다. (ESC를 누르면 마우스 해제)</p>
+    </div>
+</div>
+
+<script>
+    let scene, camera, renderer;
+    let score = 0;
+    let ammo = 30;
+    let isReloading = false;
+    let targets = [];
+    let bullets = [];
+    let flashMuzzle;
+    
+    // 시점 및 이동 제어 변수
+    let pitch = 0, yaw = 0;
+    const mouseSensitivity = 0.002;
+    const moveSpeed = 0.15;
+    const keys = { w: false, a: false, s: false, d: false };
+
+    const container = document.getElementById('game-container');
+
+    function init() {
+        // 1. Scene & Camera 설정
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x020617, 0.015);
+
+        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(0, 1.6, 0); // 인간 눈높이 위치
+
+        // 2. Renderer 설정
+        renderer = new THREE.WebGLRenderer({ antialias: true });
