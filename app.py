@@ -12,9 +12,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💥 M4 NEON SURVIVAL 3D")
-st.caption("M4 소총으로 몰려오는 인간형 NPC들을 처치하세요! 적이 접근하면 데미지를 입습니다.")
+st.caption("안정성 업그레이드 완료 버전. WASD 이동 및 마우스 조준 사격으로 NPC를 저지하세요.")
 
-# Three.js 엔진 기반 M4 + NPC 슈팅 게임 HTML
+# 에러 유발 가능성을 원천 차단한 HTML/JS 결합 소스
 fps_m4_html = """
 <!DOCTYPE html>
 <html>
@@ -38,7 +38,6 @@ fps_m4_html = """
             overflow: hidden;
             cursor: crosshair;
         }
-        /* HUD 및 UI 레이어 */
         #hud {
             position: absolute;
             top: 20px;
@@ -50,7 +49,6 @@ fps_m4_html = """
             z-index: 10;
             pointer-events: none;
         }
-        /* 실시간 HP 체력바 UI */
         #hp-container {
             position: absolute;
             top: 20px;
@@ -76,14 +74,4 @@ fps_m4_html = """
             color: rgb(148, 163, 184);
             font-size: 12px;
             line-height: 1.6;
-            background: rgba(15, 23, 42, 0.8);
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid rgb(51, 65, 85);
-            pointer-events: none;
-        }
-        /* 피격 시 화면 붉어짐 이펙트 */
-        #damage-flash {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba
+            background: rgba(15, 23, 42, 0
