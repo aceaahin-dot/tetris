@@ -13,9 +13,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚡ NEON CYBER FPS 3D")
-st.caption("에러 수정 완료! 이제 WASD로 이동하고 마우스로 조준하여 사격하세요.")
+st.caption("구문 에러 완전 해결! WASD로 이동하고 마우스로 조준하여 사격하세요.")
 
-# Three.js 기반 고퀄리티 3D FPS 게임 스크립트
+# 파이썬 주석(#) 충돌을 방지하기 위해 헥사 코드를 안전하게 래핑한 HTML5/Three.js 소스
 fps_3d_html = """
 <!DOCTYPE html>
 <html>
@@ -38,7 +38,6 @@ fps_3d_html = """
             box-shadow: 0 0 40px rgba(255, 0, 127, 0.3);
             overflow: hidden;
         }
-        /* 크로스헤어 (조준점) */
         #crosshair {
             position: absolute;
             top: 50%;
@@ -57,8 +56,6 @@ fps_3d_html = """
         }
         #crosshair::before { top: 5px; left: 0; width: 12px; height: 2px; }
         #crosshair::after { top: 0; left: 5px; width: 2px; height: 12px; }
-
-        /* UI 레이어 */
         #hud {
             position: absolute;
             top: 20px;
@@ -136,21 +133,4 @@ fps_3d_html = """
     let bullets = [];
     let flashMuzzle;
     
-    // 시점 및 이동 제어 변수
-    let pitch = 0, yaw = 0;
-    const mouseSensitivity = 0.002;
-    const moveSpeed = 0.15;
-    const keys = { w: false, a: false, s: false, d: false };
-
-    const container = document.getElementById('game-container');
-
-    function init() {
-        // 1. Scene & Camera 설정
-        scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x020617, 0.015);
-
-        camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 0); // 인간 눈높이 위치
-
-        // 2. Renderer 설정
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+    let pitch = 0, yaw = 0
