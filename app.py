@@ -1,205 +1,139 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import base64
 
-# 1. 페이지 및 레이아웃 설정
-st.set_page_config(page_title="3D 볼링 게임", page_icon="🎳", layout="wide")
+# 페이지 설정
+st.set_page_config(page_title="액션 3D 볼링 게임", page_icon="🎳", layout="wide")
 
-st.title("🎳 스트림릿 고퀄리티 3D 볼링 게임")
-st.write("아래 3D 화면을 클릭하고 **마우스를 드래그해서 앞으로 던지면** 공이 굴러갑니다!")
+st.title("🎳 3D 슬링샷 스핀 볼링 게임")
+st.write("공을 클릭한 채로 **뒤로 당겼다가 조준선(화살표)을 보며 놓으세요!** 양옆으로 당기면 강력한 스핀(훅)이 먹힙니다.")
 
-# 2. 삼중 따옴표 에러를 피하기 위한 리스트 결합 방식
-html_lines = [
-    '<!DOCTYPE html>',
-    '<html lang="ko">',
-    '<head>',
-    '    <meta charset="UTF-8">',
-    '    <title>3D Bowling Game</title>',
-    '    <style>',
-    '        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }',
-    '        canvas { display: block; }',
-    '        #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; pointer-events: none; z-index: 10; }',
-    '        #score-board { position: absolute; top: 10px; right: 10px; color: #fff; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 2px solid #333; font-size: 18px; z-index: 10; }',
-    '        #reset-btn { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; font-size: 16px; background-color: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; z-index: 10; }',
-    '        #reset-btn:hover { background-color: #ff3333; }',
-    '    </style>',
-    '    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>',
-    '</head>',
-    '<body>',
-    '    <div id="info">🕹️ 조작법: 공을 마우스로 붙잡고 앞(위쪽)으로 빠르게 드래그해서 던지세요!</div>',
-    '    <div id="score-board">🎳 쓰러진 핀: <span id="score">0</span> / 10</div>',
-    '    <button id="reset-btn" onclick="resetGame()">🎳 다시 던지기 (리셋)</button>',
-    '    <script>',
-    '        let scene, camera, renderer, ball, lane;',
-    '        let pins = [];',
-    '        let pinPositions = [];',
-    '        let ballVelocity = { x: 0, y: 0, z: 0 };',
-    '        let isThrown = false;',
-    '        let gravity = -0.005;',
-    '        let isMouseDown = false;',
-    '        let mouseStart = { x: 0, y: 0, time: 0 };',
-    '        init();',
-    '        animate();',
-    '        function init() {',
-    '            scene = new THREE.Scene();',
-    '            scene.background = new THREE.Color(0x14141f);',
-    '            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);',
-    '            camera.position.set(0, 5, 18);',
-    '            camera.lookAt(0, 1, -10);',
-    '            renderer = new THREE.WebGLRenderer({ antialias: true });',
-    '            renderer.setSize(window.innerWidth, window.innerHeight);',
-    '            renderer.shadowMap.enabled = true;',
-    '            document.body.appendChild(renderer.domElement);',
-    '            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);',
-    '            scene.add(ambientLight);',
-    '            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);',
-    '            dirLight.position.set(5, 15, 10);',
-    '            dirLight.castShadow = true;',
-    '            scene.add(dirLight);',
-    '            const laneGeo = new THREE.BoxGeometry(4, 0.2, 30);',
-    '            const laneMat = new THREE.MeshStandardMaterial({ color: 0xd2a679, roughness: 0.1 });',
-    '            lane = new THREE.Mesh(laneGeo, laneMat);',
-    '            lane.position.set(0, -0.1, -5);',
-    '            lane.receiveShadow = true;',
-    '            scene.add(lane);',
-    '            const gutterMat = new THREE.MeshStandardMaterial({ color: 0x333333 });',
-    '            const leftGutter = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 30), gutterMat);',
-    '            leftGutter.position.set(-2.25, -0.1, -5);',
-    '            const rightGutter = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 30), gutterMat);',
-    '            rightGutter.position.set(2.25, -0.1, -5);',
-    '            scene.add(leftGutter, rightGutter);',
-    '            const ballGeo = new THREE.SphereGeometry(0.4, 32, 32);',
-    '            const ballMat = new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.2, metalness: 0.5 });',
-    '            ball = new THREE.Mesh(ballGeo, ballMat);',
-    '            ball.position.set(0, 0.4, 8);',
-    '            ball.castShadow = true;',
-    '            scene.add(ball);',
-    '            const rowSpacing = -0.6;',
-    '            const colSpacing = 0.4;',
-    '            for (let row = 0; row < 4; row++) {',
-    '                let count = row + 1;',
-    '                let startX = -((count - 1) * colSpacing) / 2;',
-    '                for (let col = 0; col < count; col++) {',
-    '                    pinPositions.push({ x: startX + col * colSpacing, y: 0.5, z: -15 + row * rowSpacing });',
-    '                }',
-    '            }',
-    '            createPins();',
-    '            window.addEventListener("mousedown", onMouseDown);',
-    '            window.addEventListener("mouseup", onMouseUp);',
-    '            window.addEventListener("resize", onWindowResize);',
-    '        }',
-    '        function createPins() {',
-    '            pins.forEach(p => scene.remove(p));',
-    '            pins = [];',
-    '            const pinGeo = new THREE.CylinderGeometry(0.1, 0.18, 1.0, 16);',
-    '            const pinMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });',
-    '            pinPositions.forEach((pos) => {',
-    '                const pin = new THREE.Mesh(pinGeo, pinMat);',
-    '                pin.position.set(pos.x, pos.y, pos.z);',
-    '                pin.castShadow = true;',
-    '                pin.userData = { isActive: true, vel: {x: 0, y: 0, z: 0}, rot: {x: 0, y: 0, z: 0} };',
-    '                scene.add(pin);',
-    '                pins.push(pin);',
-    '            });',
-    '        }',
-    '        function onMouseDown(e) {',
-    '            if (isThrown) return;',
-    '            isMouseDown = true;',
-    '            mouseStart.x = e.clientX;',
-    '            mouseStart.y = e.clientY;',
-    '            mouseStart.time = Date.now();',
-    '        }',
-    '        function onMouseUp(e) {',
-    '            if (!isMouseDown || isThrown) return;',
-    '            isMouseDown = false;',
-    '            let duration = Date.now() - mouseStart.time || 1;',
-    '            let deltaX = e.clientX - mouseStart.x;',
-    '            let deltaY = e.clientY - mouseStart.y;',
-    '            if (deltaY < -20) {',
-    '                isThrown = true;',
-    '                ballVelocity.z = (deltaY / duration) * 0.15;',
-    '                ballVelocity.x = (deltaX / duration) * 0.05;',
-    '                ballVelocity.y = 0;',
-    '            }',
-    '        }',
-    '        function resetGame() {',
-    '            isThrown = false;',
-    '            ball.position.set(0, 0.4, 8);',
-    '            ballVelocity = { x: 0, y: 0, z: 0 };',
-    '            createPins();',
-    '            document.getElementById("score").innerText = "0";',
-    '        }',
-    '        function onWindowResize() {',
-    '            camera.aspect = window.innerWidth / window.innerHeight;',
-    '            camera.updateProjectionMatrix();',
-    '            renderer.setSize(window.innerWidth, window.innerHeight);',
-    '        }',
-    '        function animate() {',
-    '            requestAnimationFrame(animate);',
-    '            if (isThrown) {',
-    '                ball.position.x += ballVelocity.x;',
-    '                ball.position.z += ballVelocity.z;',
-    '                ball.rotation.x -= ballVelocity.z * 2;',
-    '                if (Math.abs(ball.position.x) > 2.0) {',
-    '                    ballVelocity.x = 0;',
-    '                    ball.position.y = 0.2;',
-    '                }',
-    '                pins.forEach(pin => {',
-    '                    if (!pin.userData.isActive) return;',
-    '                    let dist = ball.position.distanceTo(pin.position);',
-    '                    if (dist < 0.58) {',
-    '                        pin.userData.isActive = false;',
-    '                        pin.userData.vel.z = ballVelocity.z * 0.6;',
-    '                        pin.userData.vel.x = (pin.position.x - ball.position.x) * 0.5 + ballVelocity.x * 0.4;',
-    '                        pin.userData.vel.y = Math.abs(ballVelocity.z) * 0.3;',
-    '                        pin.userData.rot.x = -2.0;',
-    '                        pin.userData.rot.z = (pin.position.x - ball.position.x) * 5;',
-    '                    }',
-    '                });',
-    '                for (let i = 0; i < pins.length; i++) {',
-    '                    for (let j = 0; j < pins.length; j++) {',
-    '                        if (i === j) continue;',
-    '                        let p1 = pins[i]; let p2 = pins[j];',
-    '                        if (!p1.userData.isActive && p2.userData.isActive) {',
-    '                            let dist = p1.position.distanceTo(p2.position);',
-    '                            if (dist < 0.5) {',
-    '                                p2.userData.isActive = false;',
-    '                                p2.userData.vel.z = p1.userData.vel.z * 0.6;',
-    '                                p2.userData.vel.x = (p2.position.x - p1.position.x) * 0.8;',
-    '                                p2.userData.vel.y = Math.abs(p1.userData.vel.z) * 0.2;',
-    '                                p2.userData.rot.x = -1.5;',
-    '                            }',
-    '                        }',
-    '                    }',
-    '                }',
-    '            }',
-    '            let fallenCount = 0;',
-    '            pins.forEach(pin => {',
-    '                if (!pin.userData.isActive) {',
-    '                    pin.userData.vel.y += gravity;',
-    '                    pin.position.x += pin.userData.vel.x;',
-    '                    pin.position.y += pin.userData.vel.y;',
-    '                    pin.position.z += pin.userData.vel.z;',
-    '                    pin.rotation.x += pin.userData.rot.x * 0.1;',
-    '                    pin.rotation.z += pin.userData.rot.z * 0.1;',
-    '                    if (pin.position.y < 0.2) {',
-    '                        pin.position.y = 0.2;',
-    '                        pin.userData.vel.y = 0;',
-    '                        pin.userData.vel.x *= 0.8;',
-    '                        pin.userData.vel.z *= 0.8;',
-    '                    }',
-    '                    fallenCount++;',
-    '                }',
-    '            });',
-    '            document.getElementById("score").innerText = fallenCount;',
-    '            renderer.render(scene, camera);',
-    '        }',
-    '    </script>',
-    '</body>',
-    '</html>'
-]
-
-# 리스트 컴포넌트를 줄바꿈 문자로 하나의 HTML 문자열로 병합
-game_html_code = "\n".join(html_lines)
-
-# 3. 렌더링 실행
-components.html(game_html_code, height=650, scrolling=False)
+# 타격감 및 물리 엔진 대폭 업그레이드 버전 HTML/JS (Base64 인코딩)
+b64_html = (
+    "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImtvIj4KPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0"
+    "PSJVVEYtOCI+CiAgICA8dGl0bGU+M0QgQm93bGluZyBTbGluZ3Nob3Q8L3RpdGxlPgogICAgPHN0"
+    "eWxlPgogICAgICAgIGJvZHkgeyBtYXJnaW46IDA7IG92ZXJmbG93OiBoaWRkZW47IGJhY2tncm91"
+    "bmQtY29sb3I6ICMxYTFhMWE7IGZvbnQtZmFtaWx5OiBzYW5zLXNlcmlmOyB1c2VyLXNlbGVjdDog"
+    "bm9uZTsgfQogICAgICAgIGNhbnZhcyB7IGRpc3BsYXk6IGJsb2NrOyBjdXJzb3I6IGdyYWI7IH0K"
+    "ICAgICAgICBjYW52YXM6YWN0aXZlIHsgY3Vyc29yOiBncmFiYmluZzsgfQogICAgICAgICNpbmZv"
+    "IHsgcG9zaXRpb246IGFic29sdXRlOyB0b3A6IDEwcHg7IGxlZnQ6IDEwcHg7IGNvbG9yOiB3aGl0"
+    "ZTsgYmFja2dyb3VuZDogcmdiYSgwLDAsMCwwLjcpOyBwYWRkaW5nOiAxMHB4OyBib3JkZXItcmFk"
+    "aXVzOiA5cHg7IHBvaW50ZXItZXZlbnRzOiBub25lOyB6LWluZGV4OiAxMDsgbGluZS1oZWlnaHQ6"
+    "IDEuNTsgfQogICAgICAgICNzY29yZS1ib2FyZCB7IHBvc2l0aW9uOiBhYnNvbHV0ZTsgdG9wOiAx"
+    "MHB4OyByaWdodDogMTBweDsgY29sb3I6ICNmZmY7IGJhY2tncm91bmQ6IHJnYmEoMCwwLDAsMC44"
+    "KTsgcGFkZGluZzogMTVweDsgYm9yZGVyLXJhZGl1czogOHB4OyBib3JkZXI6IDJweCBzb2xpZCAj"
+    "NDQ0OyBmb250LXNpemU6IDIwcHg7IHotaW5kZXg6IDEwOyBmb250LXdlaWdodDogYm9sZDsgfQog"
+    "ICAgICAgICNyZXNldC1idG4geyBwb3NpdGlvbjogYWJzb2x1dGU7IGJvdHRvbTogMjBweDsgbGVm"
+    "dDogNTAlOyB0cmFuc2Zvcm06IHRyYW5zbGF0ZVgoLTUwJSk7IHBhZGRpbmc6IDE0cHggMjhweDsg"
+    "Zm9udC1zaXplOiAxOHB4OyBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA2NmZmOyBjb2xvcjogd2hpdGU7"
+    "IGJvcmRlcjogbm9uZTsgYm9yZGVyLXJhZGl1czogNXB4OyBjdXJzb3I6IHBvaW50ZXI7IGZvbnQt"
+    "d2VpZ2h0OiBib2xkOyB6LWluZGV4OiAxMDsgYm94LXNoYWRvdzogMHggNHB4IDZweCByZ2JhKDAs"
+    "MCwwLDAuMyk7IH0KICAgICAgICAjcmVzZXQtYnRuOmhvdmVyIHsgYmFja2dyb3VuZC1jb2xvcjog"
+    "IzAwNTVkZDsgfQogICAgPC9zdHlsZT4KICAgIDxzY3JpcHQgc3JjPSJodHRwczovL2NmbmpzLmNs"
+    "b3VkZmxhcmUuY29tL2FqYXgvbGlicy90aHJlZS5qcy9yMTI4L3RocmVlLm1pbi5qcyI+PC9zY3Jp"
+    "cHQ+CjwvaGVhZD4KPGJvZHk+CgogICAgPGRpdiBpZD0iaW5byI+CiAgICAgICAgPGI+7KGw7J6R"
+    "67KVOjwvYj4g6rO17YSB66as7ZuEIOuSpOuhnOyasCDtlZTsgrTsubAg6466as64Sk7IScIOuG"
+    " things7Jy87IS47JqpITxiciU+CiAgICAgICAg4qyFIOu66GcIOu7vOustCDri6ud6riwID0g"
+    "6rCV66Cl7ZWcIO2MjOydtDxiciU+CiAgICAgICAg4qyFIOyphiwgdSelective66GcIO꺾7slp"
+    "CDri6ud6riwID0g6rCV66Cl7ZWcIOy6pO2VhCAo7Iqk7ZWAKeqyvCDsl7AgfQogICAgPGRpdiBp"
+    "ZD0ic2NvcmUtYm9hcmQiPppsIOy66as7KeEIO2VhDogPHNwYW4gaWQ9InNjb3JlIj4wPC9zcGFu"
+    "PiAvIDEwPC9kaXY+CiAgICA8YnV0dG9uIGlkPSJyZXNldC1idG4iIG9uY2xpY2s9InJlc2V0R2Ft"
+    "ZSgpIj5p7LCoIO2IrOq1rCDri6z시6rW066asPC9idXR0b24+CgogICAgPHNjcmlwdD4KICAgICAg"
+    "ICBsZXQgc2NlbmUsIGNhbWVyYSwgcmVuZGVyZXIsIGJhbGwsIGxhbmUsIGFycm93OwogICAgICAg"
+    "IGxldCBwaW5zID0gW107CiAgICAgICAgbGV0IHBpblBvc2l0aW9ucyA9IFtdOwogICAgICAgIGxl"
+    "dCBiYWxsVmVsb2NpdHkgPSB7IHg6IDAsIHk6IDAsIHo6IDAgfTsKICAgICAgICBsZXQgYmFsbFNw"
+    "aW4gPSAwOyAvLyDshoTrspwgdXNlcgogICAgICAgIGxldCBpc1Rocm93biA9IGZhbHNlOwogICAg"
+    "ICAgIGxldCBncmF2aXR5ID0gLTAuMDA4OwogICAgICAgIGxldCBpc0RyYWdnaW5nID0gZmFsc2U7"
+    "CiAgICAgICAgbGV0IG1vdXNlRG93blBvcyA9IHsgeDogMCwgeTogMCB9OwogICAgICAgIGxldCBj"
+    "dXJyZW50TW91c2VQb3MgPSB7IHg6IDAsIHk6IDAgfTsKCiAgICAgICAgaW5pdCgpOwogICAgICAg"
+    "IGFuaW1hdGUKCgogICAgICAgIGZ1bmN0aW9uIGluaXQoKSB7CiAgICAgICAgICAgIHNjZW5lID0"
+    "IG5ldyBUSFJFRS5TY2VuZSgpOwogICAgICAgICAgICBzY2VuZS5iYWNrZ3JvdW5kID0gbmV3IFRI"
+    "UkVFLkNvbG9yKDB4MTExMTFhKTsKICAgICAgICAgICAgCiAgICAgICAgICAgIGNhbWVyYSA9IG5l"
+    "dyBUSFJFRS5QZXJzcGVjdGl2ZUNhbWVyYSg0NSwgd2luZG93LmlubmVyV2lkdGggLyB3aW5kb3cu"
+    "aW5uZXJIZWlnaHQsIDAuMSwgMTAwMCk7CiAgICAgICAgICAgIGNhbWVyYS5wb3NpdGlvbi5zZXQo"
+    "MCwgNiwgMTkpOwogICAgICAgICAgICBjYW1lcmEubG9va0F0KDAsIDEuNSwgLTEwKTsKCiAgICAg"
+    "ICAgICAgIHJlbmRlcmVyID0gbmV3IFRIUkVFLldlYkdMUmVuZGVyZXIoeyBhbnRpYWxpYXM6IHRy"
+    "dWUgfSk7CiAgICAgICAgICAgIHJlbmRlcmVyLnNldFNpemUod2luZG93LmlubmVyV2lkdGgsIHdp"
+    "bmRvdy5pbm5lckhlaWdodCk7CiAgICAgICAgICAgIHJlbmRlcmVyLnNoYWRvd01hcC5lbmFibGVk"
+    "ID0gdHJ1ZTsKICAgICAgICAgICAgZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChyZW5kZXJlci5k"
+    "b21FbGVtZW50KTsKCiAgICAgICAgICAgIGNvbnN0IGFtYmllbnRMaWdodCgweGZmZmZmZiwgMC43"
+    "KTsKICAgICAgICAgICAgc2NlbmUuYWRkKGFtYmllbnRMaWdodCk7CiAgICAgICAgICAgIGNvbnN0"
+    "IGRpckxpZ2h0ID0gbmV3IFRIUkVFLkRpcmVjdGlvbmFsa0xpZ2h0KDB4ZmZmZmZmLCAwLjkpOwog"
+    "ICAgICAgICAgICBkaXJMaWdodC5wb3NpdGlvbi5zZXQoNSwgMTgsIDEwKTsKICAgICAgICAgICAg"
+    "ZGlyTGlnaHQuY2FzdFNoYWRvdyA9IHRydWU7CiAgICAgICAgICAgIHNjZW5lLmFkZChkaXJMaWdo"
+    "dCk7CiAgICAgICAgICAgIAogICAgICAgICAgICAvLyDsm7DsprEg66CI7J24IChXaWRlciBMYW5l"
+    "KQogICAgICAgICAgICBjb25zdCBsYW5lR2VvID0gbmV3IFRIUkVFLkJveEdlb21ldHJ5KDUsIDAu"
+    "MiwgMzUpOwogICAgICAgICAgICBjb25zdCBsYW5lTWF0ID0gbmV3IFRIUkVFLk1lc2hTdGFuZGFy"
+    "ZE1hdGVyaWFsKHsgY29sb3I6IDB4ZThjMzlhLCByb3VnaG5lc3M6IDAuMDUgfSk7CiAgICAgICAg"
+    "ICAgIGxhbmUgPSgbmV3IFRIUkVFLk1lc2gobGFuZUdlbywgbGFuZU1hdCkpOwogICAgICAgICAg"
+    "ICBsYW5lLnBvc2l0aW9uLnNldCgwLCAtMC4xLCAtNCk7CiAgICAgICAgICAgIGxhbmUucmVjZWl2"
+    "ZVNoYWRvdyA9IHRydWU7CiAgICAgICAgICAgIHNjZW5lLmFkZChsYW5lKTsKCiAgICAgICAgICAg"
+    "IGNvbnN0IGd1dHRlck1hdCA9IG5ldyBUSFJFRS5NZXNoU3RhbmRhcmRNYXRlcmlhbCh7IGNvbG9y"
+    "OiAweDIyMjIyMiB9KTsKICAgICAgICAgICAgY29uc3QgbGVmdEd1dHRlciA9IG5ldyBUSFJFRS5N"
+    "ZXNoKG5ldyBUSFJFRS5Cb3hHZW9tZXRyeSgwLjYsIDAuMiwgMzUpLCBndXR0ZXJNYXQpOwogICAg"
+    "ICAgICAgICBsZWZ0R3V0dGVyLnBvc2l0aW9uLnNldCgtMi44LCAtMC4xLCAtNCk7CiAgICAgICAg"
+    "ICAgIGNvbnN0IHJpZ2h0R3V0dGVyID0gbmV3IFRIUkVFLk1lc2gobmV3IFRIUkVFLkJveEdlb21l"
+    "dHJ5KDAuNiwgMC4yLCAzNSksIGd1dHRlck1hdCk7CiAgICAgICAgICAgIHJpZ2h0R3V0dGVyLnBv"
+    "c2l0aW9uLnNldCgyLjgsIC0wLjEsIC00KTsKICAgICAgICAgICAgc2NlbmUuYWRkKGxlZnRHdXR0"
+    "ZXIsIHJpZ2h0R3V0dGVyKTsKCiAgICAgICAgICAgIC8vIOy7rOumvCDqs6UgKEJhbGwpCiAgICAg"
+    "ICAgICAgIGNvbnN0IGJhbGxHZW8gPSBuZXcgVEhSRUUuU3BoZXJlR2VvbWV0cnkoMC40NSwgMzIs"
+    "IDMyKTsKICAgICAgICAgICAgY29uc3QgYmFsbE1hdCA9IG5ldyBUSFJFRS5NZXNoU3RhbmRhcmRN"
+    "YXRlcmlhbCh7IGNvbG9yOiAweGVlMDBmZiwgcm91Z2huZXNzOiAwLjEsIG1ldGFsbmVzczogMC42"
+    "IH0pOwogICAgICAgICAgICBiYWxsID0gbmV3IFRIUkVFLk1lc2goYmFsbEdlbywgYmFsbE1hdCk7"
+    "CiAgICAgICAgICAgIGJhbGwucG9zaXRpb24uc2V0KDAsIDAuNDUsIDgpOwogICAgICAgICAgICBi"
+    "YWxsY2FzdFNoYWRvdyA9IHRydWU7CiAgICAgICAgICAgIHNjZW5lLmFkZChiYWxsKTsKCiAgICAg"
+    "ICAgICAgIC8vIOqyvOqyqeyEoCAoQXJyb3cgR3VpZGVsaW5lKQogICAgICAgICAgICBjb25zdCBh"
+    "cnJvd0dlbyA9IG5ldyBUSFJFRS5Db25lR2VvbWV0cnkoMC4xNSwgMSwgNCk7CiAgICAgICAgICAg"
+    "IGNvbnN0IGFycm93TWF0ID0gbmV3IFRIUkVFLk1lc2hCYXNpY01hdGVyaWFsKHsgY29sb3I6IDB4"
+    "MDBmZjAwIH0pOwogICAgICAgICAgICBhcnJvdyA9IG5ldyBUSFJFRS5NZXNoKGFycm93R2VvLCBh"
+    "cnJvd01hdCk7CiAgICAgICAgICAgIGFycm93LnJvdGF0aW9uLnggPSBNYXRoLlBJIC8gMjsKICAg"
+    "ICAgICAgICBhcnJvdy5wb3NpdGlvbi5zZXQoMCwgMC4wNSwgOCk7CiAgICAgICAgICAgIGFycm93"
+    "LnZpc2libGUgPSBmYWxzZTsKICAgICAgICAgICAgc2NlbmUuYWRkKGFycm93KTsKCiAgICAgICAg"
+    "ICAgIC8vIO2VhCDqsIQg6rKp6rKpIOughSBrZWVwIChXaWRlciBQaW4gU3BhY2luZykKICAgICAg"
+    "ICAgICBjb25zdCByb3dTcGFjaW5nID0gLTAuODsKICAgICAgICAgICAgY29uc3QgY29sU3BhY2lu"
+    "ZyA9IDAuNTU7CiAgICAgICAgICAgIAogICAgICAgICAgICBmb3IgKGxldCByb3cgPSAwOyByb3cg"
+    "PCA0OyByb3crKykgewogICAgICAgICAgICAgICAgbGV0IGNvdW50ID0gcm93ICsgMTsKICAgICAg"
+    "ICAgICAgICAgIGxldCBzdGFydFggPSAtKChjb3VudCAtIDEpICogY29sU3BhY2luZykgLyAyOwog"
+    "ICAgICAgICAgICAgICAgZm9yIChsZXQgY29sID0gMDsgY29sIDwgY29sBTsgY29sKyspIHsKICAg"
+    "ICAgICAgICAgICAgICAgICAgIHBpblBvc2l0aW9ucy5wdXNoKHsgeDogc3RhcnRYICsgY29sICog"
+    "Y29sU3BhY2luZywgeTogMC42LCB6OiAtMTQgKyByb3cgKiByb3dTcGFjaW5nIH0pOwogICAgICAg"
+    "ICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgICAgY3JlYXRlUGlucygpOwoKICAgICAg"
+    "ICAgICAgLy8g66eI7Jqw7IqkIOydtOeyoO2FgAogICAgICAgICAgICB3aW5kb3cuYWRkRXZlbnRM"
+    "aXN0ZW5lcigibW91c2Vkb3duIiwgb25Nb3VzZURvd24pOwogICAgICAgICAgICB3aW5kb3cuYWRk"
+    "RXZlbnRMaXN0ZW5lcigibW91c2Vtb3ZlIiwgb25Nb3VzZU1vdmUpOwogICAgICAgICAgICB3aW5k"
+    "b3cuYWRkRXZlbnRMaXN0ZW5lcigibW91c2V1cCIsIG9uTW91c2VVcCk7CiAgICAgICAgICAgIHdp"
+    "bmRvdy5hcHBlbmRFdmVudExpc3RlbmVyKCJyZXNpemUiLCBvbldpbmRvd1Jlc2l6ZSk7CiAgICAg"
+    "ICAgfQoKICAgICAgICBmdW5jdGlvbiBjcmVhdGVQaW5zKCkgewogICAgICAgICAgICBwaW5zLmZv"
+    "ckVhY2gocCA9PiBzY2VuZS5yZW1vdmUocCkpOwogICAgICAgICAgICBwaW5zID0gW107CiAgICAg"
+    "ICAgICAgIGNvbnN0IHBpbkdlbyA9IG5ldyBUSFJFRS5DeWxpbmRlckdlb21ldHJ5KDAuMDgsIDAu"
+    "MiwgMS4yLCAxNik7CiAgICAgICAgICAgIGNvbnN0IHBpbk1hdCA9IG5ldyBUSFJFRS5NZXNoU3Rh"
+    "bmRhcmRNYXRlcmlhbCh7IGNvbG9yOiAweGZmZmZmZiwgcm91Z2huZXNzOiAwLjMgfSk7CgogICAg"
+    "ICAgICAgICBwaW5Qb3NpdGlvbnMuZm9yRWFjaCgocG9zKSA9PiB7CiAgICAgICAgICAgICAgICBj"
+    "b25zdCBwaW4gPSBuZXcgVEhSRUUuTWVzaChwaW5HZW8sIHBpbk1hdCk7CiAgICAgICAgICAgICAg"
+    "ICBwaW4ucG9zaXRpb24uc2V0KHBvcy54LCBwb3MueSwgcG9zLnopOwogICAgICAgICAgICAgICAg"
+    "IHBpbi5jYXN0U2hhZG93ID0gdHJ1ZTsKICAgICAgICAgICAgICAgIHBpbi51c2VyRGF0YSA9IHsg"
+    "aXNBY3RpdmU6IHRydWUsIHZlbDoge3g6IDAsIHk6IDAsIHo6IDB9LCByb3Q6IHt4OiAwLCB5OiAw"
+    "LCB6OiAwfSB9OwogICAgICAgICAgICAgICAgc2NlbmUuYWRkKHBpbik7CiAgICAgICAgICAgICAg"
+    "ICBwaW5zLnB1c2gocGluKTsKICAgICAgICAgICAgfSk7CiAgICAgICAgfQoKICAgICAgICAvLyAt"
+    "LS0g7Iqs66eB7IO3IO2IrOq1rCDroZzsp4EgLS0tCiAgICAgICAgZnVuY3Rpb24gb25Nb3VzZURv"
+    "d24oZSkgewogICAgICAgICAgICBpZiAoaXNUaHJvd24pIHJldHVybjsKICAgICAgICAgICAgaXNE"
+    "cmFnZ2luZyA9IHRydWU7CiAgICAgICAgICAgIG1vdXNlRG93blBvcy54ID0gZS5jbGllbnRYOwog"
+    "ICAgICAgICAgICBtb3VzZURvd24Qb3MueSA9IGUuY2xpZW50WTsKICAgICAgICAgICAgY3VycmVu"
+    "dE1vdXNlUG9zLnggPSBlLmNsaWVudFg7CiAgICAgICAgICAgIGN1cnJlbnRNb3VzZVBvcy55ID0g"
+    "ZS5jbGllbnRZOwogICAgICAgICAgICBhcnJvdy52aXNpYmxlID0gdHJ1ZTsKICAgICAgICB9Cgog"
+    "ICAgICAgIGZ1bmN0aW9uIG9uTW91c2VNb3ZlKGUpIHsKICAgICAgICAgICAgaWYgKCFpc0RyYWdn"
+    "aW5nKSByZXR1cm47CiAgICAgICAgICAgIGN1cnJlbnRNb3VzZVBvcy54ID0gZS5jbGllbnRYOwog"
+    "ICAgICAgICAgICBjdXJyZW50TW91c2VQb3MueSA9IGUuY2xpZW50WTsKCiAgICAgICAgICAgIGxl"
+    "dCBkeCA9IG1vdXNlRG93blBvcy54IC0gY3VycmVudE1vdXNlUG9zLng7CiAgICAgICAgICAgIGxl"
+    "dCBkeSA9IGN1cnJlbnRNb3VzZVBvcy55IC0gbW91c2VEb3duUG9zLnk7IC8vIOu66GcIOu5uOum"
+    "vCDqs7wKICAgICAgICAgICAgCiAgICAgICAgICAgIC8vIO2ZlOyCrO2RnCDshLjsoJUg67mE67Kq"
+    "CiAgICAgICAgICAgIGlmIChkbyA+IDApIHsKICAgICAgICAgICAgICAgIGFycm93LnNjYWxlLnNl"
+    "dCgxLCBkeCAqIDAuMDUsIDEpOwogICAgICAgICAgICAgICAgYXJyb3cucm90YXRpb24ueiA9IC1k"
+    "eCAqIDAuMDE7CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIGZ1bmN0aW9uIG9uTW91"
+    "c2VVcChlKSB7CiAgICAgICAgICAgIGlmICghaXNEcmFnZ2luZykgcmV0dXJuOwogICAgICAgICAg"
+    "ICBpc0RyYWdnaW5nID0gZmFsc2U7CiAgICAgICAgICAgIGFycm93LnZpc2libGUgPSBmYWxzZTsK"
+    "CiAgICAgICAgICAgIGxldCBkeCA9IG1vdXNlRG93blBvcy54IC0gY3VycmVudE1vdXNlUG9zLng7"
+    "CiAgICAgICAgICAgIGxldCBkeSA9IGN1cnJlbnRNb3VzZVBvcy55IC0gbW91c2VEb3duUG9zLnk7"
+    "CgogICAgICAgICAgICBpZiAoZHkgPiAxMCkgewogICAgICAgICAgICAgICAgaXNUaHJvd24gPSB0"
+    "cnVlOwogICAgICAgICAgICAgICAgLy8g6rO1IOy9vOuPhCDso7zsnZggKFNwZWVkIFVwISkKICAg"
+    "ICAgICAgICAgICBiYWxsVmVsb2NpdHkueiA9IC1keSAqIDAuMDA
