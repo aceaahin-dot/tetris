@@ -48,12 +48,10 @@ three_js_bowling = """
         let pins = [];
         let pinPositions = [];
         
-        // 물리 엔진 대용 변수들
         let ballVelocity = { x: 0, y: 0, z: 0 };
         let isThrown = false;
         let gravity = -0.005;
         
-        // 마우스 드래그 투구 감지 변수
         let isMouseDown = false;
         let mouseStart = { x: 0, y: 0, time: 0 };
 
@@ -61,7 +59,6 @@ three_js_bowling = """
         animate();
 
         function init() {
-            // 1. Scene & Camera 설정
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x14141f);
             
@@ -69,49 +66,20 @@ three_js_bowling = """
             camera.position.set(0, 5, 18);
             camera.lookAt(0, 1, -10);
 
-            // 2. Renderer 설정
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             document.body.appendChild(renderer.domElement);
 
-            // 3. 조명 (Light)
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
 
             const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
             dirLight.position.set(5, 15, 10);
             dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
             scene.add(dirLight);
 
-            // 4. 볼링 레인 (Lane) 생성
             const laneGeo = new THREE.BoxGeometry(4, 0.2, 30);
             const laneMat = new THREE.MeshStandardMaterial({ color: 0xd2a679, roughness: 0.1 });
             lane = new THREE.Mesh(laneGeo, laneMat);
-            lane.position.set(0, -0.1, -5);
-            lane.receiveShadow = true;
-            scene.add(lane);
-
-            // 가터라인 (양옆 홈)
-            const gutterMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            const leftGutter = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 30), gutterMat);
-            leftGutter.position.set(-2.25, -0.1, -5);
-            const rightGutter = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 30), gutterMat);
-            rightGutter.position.set(2.25, -0.1, -5);
-            scene.add(leftGutter, rightGutter);
-
-            // 5. 볼링 공 (Ball) 생성
-            const ballGeo = new THREE.SphereGeometry(0.4, 32, 32);
-            const ballMat = new THREE.MeshStandardMaterial({ color: 0x0055ff, roughness: 0.2, metalness: 0.5 });
-            ball = new THREE.Mesh(ballGeo, ballMat);
-            ball.position.set(0, 0.4, 8);
-            ball.castShadow = true;
-            scene.add(ball);
-
-            // 6. 볼링 핀 (Pins) 배치 좌표 설정 (삼각형 구조)
-            const rowSpacing = -0.6;
-            const colSpacing = 0.4;
-            
-            for (let
+            lane.position.set(0
